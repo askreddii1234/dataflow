@@ -1,0 +1,44 @@
+import re
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+
+# Define a function to count words in a line
+def count_words(line):
+    return len(re.findall(r'[\w\']+', line, re.UNICODE))
+
+# Define your pipeline options
+class CustomPipelineOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--input', type=str, help='Input for the pipeline', default='gs://your-bucket/input.txt')
+        parser.add_value_provider_argument('--output', type=str, help='Output for the pipeline', default='gs://your-bucket/output')
+
+# Set up the Beam pipeline options
+options = CustomPipelineOptions(
+    runner='DataflowRunner',
+    project='your-project-id',
+    job_name='wordcount-example',
+    temp_location='gs://your-bucket/temp',
+    staging_location='gs://your-bucket/staging',
+    region='your-region',  # specify the region where your Dataflow job will be run
+)
+
+# Create the pipeline with the specified options
+with beam.Pipeline(options=options) as p:
+    # Read from an input text file
+    lines = p | 'Read' >> beam.io.ReadFromText(options.input)
+
+    # Count the words in each line
+    counts = (lines
+              | 'CountWords' >> beam.Map(count_words))
+
+    # Write the counts to an output text file
+    counts | 'Write' >> beam.io.WriteToText(options.output)
+
+# Note: Before running the script, replace 'your-bucket' with your actual GCS bucket name,
+# 'your-project-id' with your actual Google Cloud project ID, and 'your-region' with the region
+# for your Dataflow job. Also, replace 'gs://your-bucket/input.txt' with the actual path to
+# your input file and 'gs://your-bucket/output' with the desired output path.
+
+#python3 word_count.py --input gs://your-bucket/input.txt --output gs://your-bucket/output
+
